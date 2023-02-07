@@ -25,20 +25,7 @@ optimizeCoreFn m = fmap (\md -> m {moduleDecls = md}) . optimizeCommonSubexpress
 optimizeModuleDecls :: [Bind Ann] -> [Bind Ann]
 optimizeModuleDecls = map transformBinds
   where
-  (transformBinds, _, _) = everywhereOnValues identity transformExprs identity
-  transformExprs
-    = optimizeClosedRecordUpdate
-    . optimizeDataFunctionApply
-
-optimizeClosedRecordUpdate :: Expr Ann -> Expr Ann
-optimizeClosedRecordUpdate ou@(ObjectUpdate a@(_, _, Just t, _) r updatedFields) =
-  case closedRecordFields t of
-    Nothing -> ou
-    Just allFields -> Literal a (ObjectLiteral (map f allFields))
-      where f (Label l) = case lookup l updatedFields of
-              Nothing -> (l, Accessor (nullSourceSpan, [], Nothing, Nothing) l r)
-              Just e -> (l, e)
-optimizeClosedRecordUpdate e = e
+  (transformBinds, _, _) = everywhereOnValues identity optimizeDataFunctionApply identity
 
 -- | Return the labels of a closed record, or Nothing for other types or open records.
 closedRecordFields :: Type a -> Maybe [Label]

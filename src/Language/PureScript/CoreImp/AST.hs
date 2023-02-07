@@ -75,6 +75,8 @@ data AST
   | Indexer (Maybe SourceSpan) AST AST
   -- ^ An array indexer expression
   | ObjectLiteral (Maybe SourceSpan) [(PSString, AST)]
+  -- ^ object udpate
+  | ObjectUpdate (Maybe SourceSpan) AST [(PSString, AST)]
   -- ^ An object literal
   | Function (Maybe SourceSpan) (Maybe Text) [Text] AST
   -- ^ A function introduction (optional name, arguments, body)
@@ -124,6 +126,7 @@ withSourceSpan withSpan = go where
   go (ArrayLiteral _ js) = ArrayLiteral ss js
   go (Indexer _ j1 j2) = Indexer ss j1 j2
   go (ObjectLiteral _ js) = ObjectLiteral ss js
+  go (ObjectUpdate _ obj js) = ObjectUpdate ss obj js
   go (Function _ name args j) = Function ss name args j
   go (App _ j js) = App ss j js
   go (Var _ s) = Var ss s
@@ -152,6 +155,7 @@ getSourceSpan = go where
   go (ArrayLiteral ss _) = ss
   go (Indexer ss _ _) = ss
   go (ObjectLiteral ss _) = ss
+  go (ObjectUpdate ss _ _) = ss
   go (Function ss _ _ _) = ss
   go (App ss _ _) = ss
   go (Var ss _) = ss
@@ -177,6 +181,7 @@ everywhere f = go where
   go (ArrayLiteral ss js) = f (ArrayLiteral ss (map go js))
   go (Indexer ss j1 j2) = f (Indexer ss (go j1) (go j2))
   go (ObjectLiteral ss js) = f (ObjectLiteral ss (map (fmap go) js))
+  go (ObjectUpdate ss obj j) = f (ObjectUpdate ss (go obj) (fmap (fmap go) j))
   go (Function ss name args j) = f (Function ss name args (go j))
   go (App ss j js) = f (App ss (go j) (map go js))
   go (Block ss js) = f (Block ss (map go js))
@@ -203,6 +208,7 @@ everywhereTopDownM f = f >=> go where
   go (ArrayLiteral ss js) = ArrayLiteral ss <$> traverse f' js
   go (Indexer ss j1 j2) = Indexer ss <$> f' j1 <*> f' j2
   go (ObjectLiteral ss js) = ObjectLiteral ss <$> traverse (sndM f') js
+  go (ObjectUpdate ss obj js) = ObjectUpdate ss <$> f' obj <*> traverse (sndM f') js
   go (Function ss name args j) = Function ss name args <$> f' j
   go (App ss j js) = App ss <$> f' j <*> traverse f' js
   go (Block ss js) = Block ss <$> traverse f' js
@@ -225,6 +231,7 @@ everything (<>.) f = go where
   go j@(ArrayLiteral _ js) = foldl (<>.) (f j) (map go js)
   go j@(Indexer _ j1 j2) = f j <>. go j1 <>. go j2
   go j@(ObjectLiteral _ js) = foldl (<>.) (f j) (map (go . snd) js)
+  go j@(ObjectUpdate _ j1 js) = foldl (<>.) (f j <>. go j1) (map (go . snd) js)
   go j@(Function _ _ _ j1) = f j <>. go j1
   go j@(App _ j1 js) = foldl (<>.) (f j <>. go j1) (map go js)
   go j@(Block _ js) = foldl (<>.) (f j) (map go js)

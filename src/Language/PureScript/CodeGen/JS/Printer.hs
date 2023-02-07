@@ -63,6 +63,29 @@ literals = mkPattern' match'
           s'
         _ ->
           prettyPrintStringJS s
+  match (ObjectUpdate _ obj ps) = mconcat <$> sequence
+    [ return $ emit "{\n"
+    , withIndent $ do
+       indentString <- currentIndent
+       return $ indentString <> (emit "...(")
+    , prettyPrintJS' obj
+    , return $ emit "),\n"
+    , withIndent $ do
+        jss <- forM ps $ \(key, value) -> fmap ((objectPropertyToString key <> emit ": ") <>) . prettyPrintJS' $ value
+        indentString <- currentIndent
+        return $ intercalate (emit ",\n") $ map (indentString <>) jss
+    , return $ emit "\n"
+    , currentIndent
+    , return $ emit "}"   
+    ]
+    where
+    objectPropertyToString :: (Emit gen) => PSString -> gen
+    objectPropertyToString s =
+      emit $ case decodeString s of
+        Just s' | isValidJsIdentifier s' ->
+          s'
+        _ ->
+          prettyPrintStringJS s
   match (Block _ sts) = mconcat <$> sequence
     [ return $ emit "{\n"
     , withIndent $ prettyStatements sts
